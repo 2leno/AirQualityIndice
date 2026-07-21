@@ -7,6 +7,9 @@ from pathlib import Path
 import pandas as pd
 
 from aqi_config.settings import settings
+from src.extract import BACKFILL_DIR, extract_data_range
+from src.load import load_data_backfill
+from src.transform import transform_data
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,6 +31,20 @@ def compute_months(start_date: str, end_date: str) -> list[str]:
         else:
             current_date = current_date.replace(month=current_date.month + 1)
     return months
+
+
+def month_boundaries(year_month: str) -> tuple[str, str]:
+    year, month_number = map(int, year_month.split("-"))
+    first_day = datetime(year, month_number, 1)
+    last_day_number = monthrange(year, month_number)[1]
+    last_day = datetime(year, month_number, last_day_number)
+    return first_day.strftime("%Y-%m-%d"), last_day.strftime("%Y-%m-%d")
+
+
+def is_month_downloaded(city_slug: str, year_month: str) -> bool:
+    file_path = BACKFILL_DIR / city_slug / f"{year_month}.csv"
+    return file_path.exists()
+
 
 def download_and_save_month(
     city: dict,
@@ -58,6 +75,58 @@ def download_and_save_month(
         len(api_result),
     )
     return api_result
+
+
+def bulk_load_raw_to_database():
+    all_csv_files = sorted(BACKFILL_DIR.rglob("*.csv"))
+    if not all_csv_files:
+        logger.warning("[Load] Aucun fichier trouve dans %s", BACKFILL_DIR)
+        return
+
+    combined_data = pd.concat(
+        [pd.read_csv(csv_path) for csv_path in all_csv_files],
+        ignore_index=True,
+    )
+    combined_data = combined_data.sort_values(["timestamp", "city_name"])
+    combined_data = combined_data.drop_duplicates(
+        subset=["city_name", "timestamp"]
+    )
+
+    logger.info(
+        "[Load] %d fichiers, %d lignes combinees",
+        len(all_csv_files),
+        len(combined_data),
+    )
+
+    transformed_tables = transform_data(combined_data)
+    load_data_backfill(transformed_tables)
+    logger.info("[Load] Chargement termine dans PostgreSQL")
+
+
+def process_backfill(
+    cities: list[dict],
+    months: list[str],
+    raw_only: bool,
+    skip_existing: bool,
+):
+    has_new_data = False
+    for city in cities:
+        for year_month in months:
+            new_data = download_and_save_month(city, year_month, skip_existing)
+            if new_data is not None and not new_data.empty:
+                has_new_data = True
+
+    if not raw_only and has_new_data:
+        logger.info(
+            "[Backfill] Nouveaux fichiers trouves, chargement en base..."
+        )
+        bulk_load_raw_to_database()
+    elif not raw_only:
+        logger.info(
+            "[Backfill] Aucun nouveau fichier, chargement depuis les existants..."
+        )
+        bulk_load_raw_to_database()
+
 
 def main():
     parser = argparse.ArgumentParser(
