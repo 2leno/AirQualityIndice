@@ -1,0 +1,4 @@
+category_id,category_name,description
+1,Indice composite,"Indice synthetique de qualite de l'air (EAQI, US AQI)"
+2,Particules fines,"Particules solides en suspension (PM2.5, PM10)"
+3,Gaz polluants,"Gaz issus de la combustion ou reactions atmospheriques (NO2, O3, SO2, CO)"
