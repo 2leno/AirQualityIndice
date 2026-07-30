@@ -78,7 +78,7 @@ def dtypes_check(
     for col, dtype in expected.items():
         if col not in df.columns:
             mismatches.append(f"{col}: colonne manquante")
-        elif not isinstance(df[col].dtype, dtype) and df[col].dtype != dtype:
+        elif df[col].dtype != dtype:
             mismatches.append(f"{col}: attendu {dtype}, obtenu {df[col].dtype}")
     return mismatches
 

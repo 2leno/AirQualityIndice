@@ -75,6 +75,15 @@ cp .env.example .env
 docker compose up -d
 ```
 
+## Tests
+
+```bash
+uv sync --group dev
+uv run pytest
+```
+
+Tests unitaires pour les modules `quality`, `transform`, `alert` et `extract`.
+
 ## Backfill Historical Data
 
 ```bash
