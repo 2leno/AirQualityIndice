@@ -83,13 +83,6 @@ uv run python scripts/backfill.py --raw-only           # download only
 uv run python scripts/backfill.py --start-date 2026-01 --end-date 2026-06
 ```
 
-## TODO
-
-- Unit and integration tests (pytest configured)
-- CI/CD pipeline
-- Monitoring / health checks for pipeline runs
-- Alembic migrations for schema versioning
-
 ## License
 
 MIT
